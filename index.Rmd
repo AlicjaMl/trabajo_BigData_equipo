@@ -1,0 +1,1005 @@
+---
+title: "Análisis de las mejores 100 universidades del mundo"
+author: "Anna Chesa Llorens (anchello@alumni.uv.es)  \n\n Lorenzo Chirchirillo (lochir@alumni.uv.es)  \n \n Alicja Młynek (amly@alumni.uv.es) \n\n Universitat de València"
+date: "Diciembre de 2021 (actualizado el `r format(Sys.time(), '%d-%m-%Y')`)"
+output:
+  html_document:
+    #css: "./assets/my_css_file.css"
+    theme: readable
+    highlight: textmate 
+    toc: true
+    toc_depth: 3 
+    toc_float: 
+      collapsed: true
+      smooth_scroll: true
+    self_contained: true
+    number_sections: false
+    df_print: kable
+    code_download: true
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{r packages-setup, include = FALSE}
+library(tidyverse)
+library(klippy)  #remotes::install_github("rlesur/klippy")
+library(knitr)
+library(ggplot2)
+library(gganimate)
+library(wordcloud2) 
+library(maps)
+library(fmsb)
+library(RColorBrewer)
+library(scales)
+library(kableExtra)
+library(ggridges)
+```
+
+```{r chunk-setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, message = FALSE, warning = FALSE, 
+                      #results = "hold",
+                      cache = FALSE, cache.path = "/caches/", comment = "#>",
+                      #fig.width = 7, #fig.height= 7,   
+                      #out.width = 7, out.height = 7,
+                      collapse = TRUE,  fig.show = "hold",
+                      fig.asp = 0.628, out.width = "75%", fig.align = "center")
+#knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+```{r options-setup, include = FALSE}
+options(scipen = 999) #- para quitar la notación científica
+#options("yaml.eval.expr" = TRUE) 
+```
+
+```{r klippy, eval = FALSE, echo = FALSE}
+klippy::klippy(position = c("top", "right")) #- remotes::install_github("rlesur/klippy")
+```
+
+<hr class="linea-black">
+
+Trabajo elaborado para la asignatura "Programación y manejo de datos en
+la era del Big Data" de la Universitat de València durante el curso
+2021-2022. El repo del trabajo está
+[aquí](https://github.com/AlicjaMl/trabajo_BigData_equipo){target="_blank"}.
+
+La página web de la asignatura y los trabajos de mis compañeros pueden
+verse
+[aquí](https://perezp44.github.io/intro-ds-21-22-web/07-trabajos.html){target="_blank"}.
+
+<hr class="linea-red">
+
+# 1. Introducción
+
+El título del trabajo es: Análisis de las mejores 100 universidades del mundo.  Nuestro objetivo es hacer un estudio de la evolución respecto a diferentes variables de tres dataset que contienen diferentes rankings de las mejores 100 universidades del mundo desde el año 2012 hasta 2015.
+Planteamos preguntas como qué país tiene más universidades en el ranking, cuál es el número de estudiantes en las mejores universidades, o la relación entre la posición de una universidad en el ránking con su posición respecto al nivel de educación o el número de publicaciones. 
+
+Además, queremos mostrar la información de manera más visual mediante gráficos dinámicos comparando la evolución de las universidades en el top 10 durante los años, la posición de los diferentes países en el ránking, así como su evolución a lo largo del tiempo. 
+
+Vamos a basar, entre otros, en estas fuentes:\
+
+1.  Y. Bano, S. Vasantha. Influence Of University Reputation On
+    Employability. 2019
+
+2.  [Datos recientes sobre el ránking de
+    Shanghai](https://www.shanghairanking.com/rankings/arwu/2021)
+
+3.  [What impact does university reputation have on
+    students?](https://www.timeshighereducation.com/student/news/what-impact-does-university-reputation-have-students){.uri}
+
+4.  [Universidades líderes en el mundo. El posicionamiento de
+    España](https://www.ivie.es/es_ES/ptproyecto/futuro-del-liderazgo-las-universidades-las-sociedades-avanzadas/).
+    2020
+
+------------------------------------------------------------------------
+
+# 2. Datos {.tabset}
+
+### <FONT COLOR="FF4D00">**Datos**</FONT>
+
+```{r}
+# Cargamos los datos previamente descargados de la página Kaggle
+cwur <- rio::import("./datos/cwurData.csv")
+Shanghai <- rio::import("./datos/shanghaiData.csv")
+times_data <- rio::import("./datos/timesData.csv")
+```
+
+Hemos utilizado los datos de varias instituciones que han hecho un
+ranking de las mejores universidades introduciendo variables diferentes,
+sacados de
+[Kaggle](https://www.kaggle.com/mylesoneill/world-university-rankings).
+Esas instituciones son:
+
+1.  [Center for World University Rankings](https://cwur.org/)
+    (`r nrow(cwur)` filas, `r length(names(cwur))` columnas), que desde
+    su fundación en 2012 recopila los datos de las mejores universidades
+    desde Arabia Saudita.
+
+2.  [Times Higher Education World University
+    Ranking](https://www.timeshighereducation.com/content/world-university-rankings)
+    (`r nrow(times_data)` rows, `r length(names(times_data))` columns),
+    fundado en Reino Unido en 2010, es una de las clasificaciones más
+    influyentes del momento, aunque algo criticado por su especial
+    fijación en las universidades inglesas.
+
+3.  [Academic Ranking of World
+    Universities](http://www.shanghairanking.com/) (`r nrow(Shanghai)`
+    filas, `r length(names(Shanghai))` columnas), más conocido como el
+    tan influyente Shangai Ranking, que comenzó a publicar sus listados
+    en 2003.
+
+Todas las modificaciones que hemos hecho las podéis observar en la
+pestaña **Limpieza de datos**
+
+### <FONT COLOR="FF4D00">**Tidy**</FONT>
+
+En realidad nuestros datos no han tenido que ser muy limpiados, ya que
+en la página de [Kaggle](https://www.kaggle.com/) aparecían bastante
+bien. Sin embargo, añadimos aquí cualquier modificación que han podido
+sufrir.
+
+Aquí podemos ver un resumen de las variables según su tipo, y teniendo
+en cuenta también los NA's
+
+```{r}
+visdat::vis_dat(cwur) 
+visdat::vis_dat(times_data)
+visdat::vis_dat(Shanghai)
+```
+
+Sí vamos a filtrar los datos para obtener los mismos rangos de tiempo y
+el ranking de las mejores 100 universidades cada año, y poder así
+homogeneizar nuestro análisis.
+
+```{r}
+cwur1 <- cwur %>% 
+  filter(world_rank <= 100)
+
+times1 <- times_data %>% 
+  filter(year >=  2012 , year <= 2015) %>% 
+  mutate(world_rank_N = as.integer(world_rank)) %>% 
+  filter(world_rank_N <= 100)
+ 
+
+Shanghai1 <- Shanghai %>%
+  filter(year >=  2012 , year <= 2015) %>% 
+  mutate(world_rank_N = as.integer(world_rank)) %>% 
+  filter(world_rank_N <= 100)
+
+  
+```
+
+Además, hacemos un repaso a los tipos de datos con los que vamos a
+trabajar.
+
+```{r}
+
+str(cwur1)
+
+str(times1)
+
+str(Shanghai1)
+```
+
+Y creamos unos df's diferentes que usaremos después
+
+```{r}
+cwur5 <- cwur %>% filter(world_rank <= 5)
+
+times5 <- times1 %>%  filter(world_rank_N <= 5)
+
+Shanghai5 <- Shanghai1 %>%  filter(world_rank_N <= 5)
+
+```
+
+------------------------------------------------------------------------
+
+# 3. Preguntas de investigación
+
+### *Center for World University Rankings*
+
+Vamos a empezar a analizar las preguntas que nos hemos planteado y
+queremos resolver con la ayuda de los datos utilizados en este análisis
+de las 100 mejores universidades del mundo según el [Center for World
+University Rankings.](https://cwur.org/)
+
+Nos hemos preguntado **qué país es el que tiene más instituciones en el
+ranking**, y lo vamos a calcular para cada año por separado, y teniendo
+en cuenta ambos, el top 100 y el top 50 en cada caso. Además, incuiremos
+tablas dinámicas para mostrar los resultados de una manera más visual.
+
+```{r,  eval = TRUE}
+#Para 2012 top 100 y top 50
+top_100_2012 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2012) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_100_2012)
+
+top_50_2012 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2012) %>%
+  slice_max(world_rank, n = 50) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_50_2012)
+
+#Para 2013 top 100 y top 50
+top_100_2013 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2013) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_100_2013)
+
+top_50_2013 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2013) %>%
+  slice_max(world_rank, n = 50) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_50_2013)
+
+#Para 2014 top 100 y top 50
+top_100_2014 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2014) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_100_2014)
+
+top_50_2014 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2014) %>%
+  slice_max(world_rank, n = 50) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_50_2014)
+
+#Para 2015 top 100 y top 50
+top_100_2015 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2015) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_100_2015)
+
+top_50_2015 <- cwur1 %>%
+  select(country, institution, year, world_rank) %>%
+  filter(year == 2015) %>%
+  slice_max(world_rank, n = 50) %>%
+  count(country) %>%
+  arrange(desc(n))
+
+DT::datatable(top_50_2015)
+
+```
+
+Y entonces, *¿cuáles son los 5 países que contienen más universidades en
+este ránking?* Volvemos a analizarlo de una manera más visual, y
+observamos que, de nuevo, **USA** es el país con más universidades bien
+posicinadas en la clasificación según el Centre for World University
+Rankings durante los años 2012-2015, aunque se observa un ligero
+descenso a partir de 2014. En segundo lugar se sitúa siempre también
+Reino Unido, seguido de Jaón y otros países como Suiza o Alemania.
+
+```{r, echo = FALSE, eval = TRUE}
+CwurCountries <- cwur1 %>% group_by(year, country) %>% summarise(NN =
+n()) %>% ungroup() %>% group_by(year) %>% arrange(desc(NN)) %>%
+slice_max(NN, n = 5)
+
+ggplot(CwurCountries, aes(country, NN)) + geom_bar(stat = "identity",
+fill="#f68060", alpha = .6, width = .4) + coord_flip() +
+facet_wrap(vars(year)) +  theme_minimal() + labs(title = "Mejores 5 países según CWUR", y =
+"rank")
+```
+
+Si seguimos en la línea de los **países mejor dotados de universidades
+incluidas en el ránking** durante todo el período y lo visualizamos en
+un mapa, podemos volver a verlo de una manera más visual, aunque el
+resultado no cambia prácticamente. Obtenemos los mismos resultados, pero
+visualmente más atractivos.
+
+```{r, echo = FALSE, eval = TRUE}
+
+CwurCountries10 <- cwur1 %>% 
+  #filter(year == 2012) %>% 
+  rename(region = country) %>% 
+  group_by(year, region) %>% 
+  summarise(NN = n()) %>% 
+  ungroup() %>% 
+  group_by(year) %>% 
+  arrange(desc(NN)) %>% 
+  slice_max(NN, n = 10) %>%
+  ungroup %>% 
+  select(year, region)
+
+
+World <- map_data("world")   
+
+Map1 <- left_join(CwurCountries10, World, by = "region") 
+
+
+ggplot() +
+  geom_polygon(data = World, aes (x = long, y = lat, group = group), fill = "#f2f2f2", color = "white") +
+  geom_polygon(data = Map1, aes (x = long, y = lat, group = group),  fill = "#69b3a2", color = "white") +
+  facet_wrap(vars(year)) +  
+  theme_void() 
+```
+
+```{r, echo = FALSE, eval = TRUE}
+
+D_words <- cwur1 %>% select(country) %>% group_by(country) %>%
+summarise(Freq = n()) %>% arrange(desc(Freq))
+
+wordcloud2(data = D_words, size = 1.0)
+
+```
+
+Este análisis se puede extender a los **100 países con más
+representación de universidades** teniendo en cuenta los datos del CWUR.
+Obviamente, EEUU sigue siendo el país con más universidades en el
+ránking, pero aparecen otros países interesantes, como Noruega o Israel,
+por ejemplo. No observamos ninguna universidad española entre las
+seleccionadas, sin embargo.
+
+```{r, echo = FALSE, eval = TRUE}
+best_count_cwur <- 
+  cwur1 %>% 
+  select(year, institution, country, world_rank) %>%
+  group_by(country) %>% 
+  summarise(NN = n()) %>% 
+  arrange(desc(NN)) %>% 
+  ungroup 
+
+
+bc <- ggplot(best_count_cwur, aes(x="", y=NN, fill=country))+
+  geom_bar(width = 1, stat = "identity") +
+  labs(title = "Best 100 Countries by CWUR in 2012 -  2015",
+       x = " ",
+       y = " ")
+
+pie <- bc + coord_polar("y", start=0)
+pie + theme_minimal()
+```
+
+También podemos comparar este gráfico con las mejores países según el
+segundo dataset, Times, que analizaremos un poco más dentro de nada.
+
+```{r, echo = FALSE, eval = TRUE}
+best_count_times <- 
+  times1 %>% 
+  select(year, university_name, country, world_rank) %>%
+  group_by(country) %>% 
+  summarise(NN = n()) %>% 
+  arrange(desc(NN)) %>% 
+  ungroup 
+
+tc <- ggplot(best_count_times, aes(x="", y=NN, fill=country))+
+  geom_bar(width = 1, stat = "identity") +
+  labs(title = "Best 100 Countries by TIMES in 2012 - 2015",
+       x = " ",
+       y = " ")
+
+pie <- tc + coord_polar("y", start=0)
+pie + theme_minimal()
+
+```
+
+Siguiendo con nuestro análisis, en la siguiente tabla analizamos, en
+resumen, **cuáles han sido las diez mejores universidades** según este
+ránking a través de los años 2012-2015.
+
+```{r, echo = FALSE, eval = TRUE}
+
+cwur10 <- cwur1 %>% 
+  select(year, world_rank, institution) %>% 
+  filter(world_rank <= 10) %>% 
+  rename(world_rank_cwur = world_rank, "university name" = institution)
+
+cwur10_wide <- pivot_wider(cwur10, names_from = year, values_from = world_rank_cwur)
+
+kbl(cwur10_wide) %>%
+  kable_styling(fixed_thead = list(enabled = T, 
+                                   background = "lightblue")) %>% 
+  kable_paper(bootstrap_options = "striped", full_width = F)
+
+```
+
+Teniendo en cuenta ahora las **cinco mejores universidades** según este
+ránking, podemos hacer un análisis de una manera más visual, a través
+(de nuevo) de los años 2012-2015. Para eso utilizamos un mapa animado.
+Podemos observar cómo Harvard se ha mantenido en primera posición
+durante todo el período, y lo mismo ocurre con Stanford a partir de
+2013, cuando pasa del tercero al segundo puesto y después mantiene su
+posición. El MIT, sin embargo, empieza situado en el segundo puesto y
+baja escalones hasta el cuarto, volviendo a subir al tercer lugar y
+menteniendo esta posición después. Además, Oxford aparece en 2013 para
+ocupar el tercer puesto y baja después para mantenerse en la quinta
+posición. Por su parte, Cambridge se situa entre el cuarto y quinto
+puesto todo de manera alterna, y el California Insitute of Technology
+aparece sólo en 2012 en quinta posición. Se puede observar todo esto de
+manera muy gráfica aquí:
+
+```{r, echo = FALSE, eval = TRUE}
+ggplot(cwur5, aes(year, world_rank, color = institution, shape = institution)) +
+  geom_point(aes(size = 4))+
+  scale_color_brewer(type="qual", palette = 3) +
+  transition_time(year) +
+  ease_aes('linear') +
+  theme_minimal() +
+  labs(title = "Best 5 Universities by CWUR",
+       y = "rank")
+
+```
+
+Pero, ¿cómo son estas universidades? Vamos a ver imágenes que nos las
+enseñen y así poder hacer nosotros una comparación dependiendo de cómo
+de bonitas sean.
+
+-   Tenemos en primer lugar a Harvard, la clara ganadora durante todos
+    los años.
+
+```{r, echo = FALSE, eval = TRUE}
+knitr::include_graphics("./imagenes/harvard.jpeg")
+```
+
+-   Pero no muy por detrás se encuentra Stanford, otra preciosa facultad
+    rodeada de jardines.
+
+```{r, echo = FALSE, eval = TRUE}
+knitr::include_graphics("./imagenes/stanford.jpeg")
+```
+
+-   Y como no, el MIT, con su increíble capitolio.
+
+```{r, echo = FALSE, eval = TRUE}
+knitr::include_graphics("./imagenes/MIT.jpeg")
+```
+
+-   No podemos dejar de incluir, en este caso juntas, a las famosísimas
+    universidades de Oxford y Cambridge, con sus espectaculares campus.
+
+```{r, echo = FALSE, eval = TRUE}
+knitr::include_graphics("./imagenes/oxford.jpeg")
+knitr::include_graphics("./imagenes/cambridge.jpeg")
+```
+
+-   Por último, observemos la belleza del California Insitute of
+    Technology.
+
+```{r, echo = FALSE, eval = TRUE}
+knitr::include_graphics("./imagenes/california.jpeg")
+```
+
+Ahora, queremos tener en cuenta cuánto de buenas son estas universidades
+si consideramos diferentes variables, como la posición de cada una en el
+ránking a nivel nacional, el número de patentes, la calidad de la
+educación, el número de publicaciones, la posterior empleabilidad de sus
+alumnos o el número de citas. Para eso utilizamos "spider graphs", que
+nos muestran de manera sencilla lo que queremos analizar. Tendremos en
+cuenta que cuanto más afuera se encuentra el extremo de la variable
+analizada, mejor situada en el ránking aparecerá esa universidad
+respecto a esta variable. Vamos a ver entonces cómo cambian estos
+gráficos dependiendo de el año en el que nos encontremos.
+
+<FONT COLOR="Skyblue">Resultados de 5 mejores universidades del mundo en
+diferentes categorías en 2015</FONT COLOR>
+
+```{r, echo = FALSE, eval = TRUE}
+#spiderweb for 2015
+
+spidercwur15 <- cwur5 %>% 
+  filter(year == 2015) %>% 
+  select(world_rank, national_rank, citations, alumni_employment, publications, patents, quality_of_education)
+  
+spidercwur15 <- as.data.frame(spidercwur15)
+
+# To use the fmsb package, I have to add 2 lines to the dataframe: the max and min of each 
+
+max_min <- data.frame(
+  world_rank = c(0, 50), national_rank = c(0, 50),  citations = c(0, 50),
+  alumni_employment = c(0, 50), publications = c(0, 50),
+  patents = c(0, 50), education_quality = c(0, 50))
+rownames(max_min) <- c("Max", "Min")
+
+# Bind the variable ranges to the data
+spidercwur15 <- rbind(rep(1, 7), rep(50, 7), spidercwur15)
+
+rownames(spidercwur15) <- c("max", "min", "Harvard University", "Stanford University", "Massachusetts Institute of Technology", "University of Cambridge", "University of Oxford")
+
+colnames(spidercwur15) <- c("world rank", "national rank" , "citations", "alumni employment" , "publications", "patents", "education quality")
+
+
+
+coul <- brewer.pal(3, "Paired")
+colors_border <- coul
+colors_in <- alpha(coul,0.3)
+
+op <- par(mar = c(2, 0.2, 2, 0))
+par(mfrow = c(2,3))
+
+
+for(i in 3:nrow(spidercwur15)){
+    radarchart(spidercwur15[c(1:2,i), ],
+               cglty = 1,      
+               cglcol = "gray",
+               cglwd=0.8,
+               pcol=colors_border, 
+               pfcol=colors_in,  
+               plwd = 2,        
+               plty = 1,     
+               caxislabels=seq(0, 50, 10), 
+               vlcex=0.6, 
+               title = row.names(spidercwur15) [i]) 
+}
+
+```
+
+<FONT COLOR="Green">Resultados de 5 mejores universidades del mundo en
+diferentes categorías en 2014</FONT COLOR>
+
+```{r, echo = FALSE, eval = TRUE}
+
+# spiderweb 2014
+spidercwur14 <- cwur5 %>% 
+  filter(year == 2014) %>% 
+  select(world_rank, national_rank, citations, alumni_employment, publications, patents, quality_of_education)
+
+spidercwur14 <- as.data.frame(spidercwur14)
+
+max_min <- data.frame(
+  world_rank = c(0, 50), national_rank = c(0, 50),  citations = c(0, 50),
+  alumni_employment = c(0, 50), publications = c(0, 50),
+  patents = c(0, 50), education_quality = c(0, 50))
+rownames(max_min) <- c("Max", "Min")
+
+
+spidercwur14 <- rbind(rep(1, 7), rep(50, 7), spidercwur14)
+
+rownames(spidercwur14) <- c("max", "min", "Harvard University", "Stanford University", "Massachusetts Institute of Technology", "University of Cambridge", "University of Oxford")
+
+colnames(spidercwur14) <- c("world rank", "national rank" , "citations", "alumni employment" , "publications", "patents", "education quality")
+
+
+coul <- brewer.pal(1, "Set2")
+colors_border <- coul
+colors_in <- alpha(coul,0.3)
+
+op <- par(mar = c(2, 0.2, 2, 0))
+par(mfrow = c(2,3))
+
+
+for(i in 3:nrow(spidercwur14)){
+  radarchart(spidercwur14[c(1:2,i), ],
+             cglty = 1,       
+             cglcol = "gray",
+             cglwd=0.8,
+             pcol=colors_border, 
+             pfcol=colors_in,   
+             plwd = 2,        
+             plty = 1,    
+             caxislabels=seq(0, 50, 10), 
+             vlcex=0.6, 
+             title = row.names(spidercwur14) [i]) 
+}
+
+```
+
+<FONT COLOR="Pink">Resultados de 5 mejores universidades del mundo en
+diferentes categorías en 2013</FONT COLOR>
+
+```{r, echo = FALSE, eval = TRUE}
+
+
+# spiderweb 2013
+spidercwur13 <- cwur5 %>% 
+  filter(year == 2013) %>% 
+  select(world_rank, national_rank, citations, alumni_employment, publications, patents, quality_of_education)
+
+spidercwur13 <- as.data.frame(spidercwur13)
+
+max_min <- data.frame(
+  world_rank = c(0, 50), national_rank = c(0, 50),  citations = c(0, 50),
+  alumni_employment = c(0, 50), publications = c(0, 50),
+  patents = c(0, 50), education_quality = c(0, 50)
+)
+rownames(max_min) <- c("Max", "Min")
+
+spidercwur13 <- rbind(rep(1, 7), rep(50, 7), spidercwur13)
+
+rownames(spidercwur13) <- c("max", "min", "Harvard University", "Stanford University", "University of Oxford", "Massachusetts Institute of Technology", "University of Cambridge")
+
+colnames(spidercwur13) <- c("world rank", "national rank" , "citations", "alumni employment" , "publications", "patents", "education quality")
+
+
+coul <- brewer.pal(1, "Pastel1")
+colors_border <- coul
+colors_in <- alpha(coul,0.3)
+
+op <- par(mar = c(2, 0.2, 2, 0))
+par(mfrow = c(2,3))
+
+
+for(i in 3:nrow(spidercwur13)){
+  radarchart(spidercwur13[c(1:2,i), ],
+             cglty = 1,       
+             cglcol = "gray",
+             cglwd=0.8,
+             pcol=colors_border, 
+             pfcol=colors_in,   
+             plwd = 2,        
+             plty = 1,     
+             caxislabels=seq(0, 50, 10), 
+             vlcex=0.6, 
+             title = row.names(spidercwur13) [i]) 
+}
+```
+
+<FONT COLOR="Purple">Resultados de 5 mejores universidades del mundo en
+diferentes categorías en 2012</FONT COLOR>
+
+```{r, echo = FALSE, eval = TRUE}
+
+# spiderweb 2012
+spidercwur12 <- cwur5 %>% 
+  filter(year == 2012) %>% 
+  select(world_rank, national_rank, citations, alumni_employment, publications, patents, quality_of_education)
+
+spidercwur12 <- as.data.frame(spidercwur12)
+
+max_min <- data.frame(
+  world_rank = c(0, 50), national_rank = c(0, 50),  citations = c(0, 50),
+  alumni_employment = c(0, 50), publications = c(0, 50),
+  patents = c(0, 50), education_quality = c(0, 50)
+)
+rownames(max_min) <- c("Max", "Min")
+
+spidercwur12 <- rbind(rep(1, 7), rep(50, 7), spidercwur12)
+
+rownames(spidercwur12) <- c("max", "min", "Harvard University", "Massachusetts Institute of Technology", "Stanford University", "University of Cambridge", "California Institute of Technology")
+
+colnames(spidercwur12) <- c("world rank", "national rank" , "citations", "alumni employment" , "publications", "patents", "education quality")
+
+
+
+coul <- brewer.pal(3, "PuRd")
+colors_border <- coul
+colors_in <- alpha(coul,0.5)
+
+op <- par(mar = c(2, 0.2, 2, 0))
+par(mfrow = c(2,3))
+
+
+for(i in 3:nrow(spidercwur12)){
+  radarchart(spidercwur12[c(1:2,i), ],
+             cglty = 1,       
+             cglcol = "gray",
+             cglwd=0.8,
+             pcol=colors_border, 
+             pfcol=colors_in,  
+             plwd = 2,        
+             plty = 1, 
+             caxislabels=seq(0, 50, 10), 
+             vlcex=0.6, 
+             title = row.names(spidercwur12) [i]) 
+}
+```
+
+Para observar la relación entre la **calidad de la educació**n y la
+**posterior empleabilidad** de los alumnos preparamos dos gráficos,
+donde podemos observar, que las universidades obtienen una clasificación
+más alta en términos de calidad de enseñanza que empleo de los alumnos
+
+```{r, echo = FALSE, eval = TRUE}
+edu_empl <- cwur1 %>% 
+  filter(world_rank <= 10) %>% 
+  select(year, institution, quality_of_education, alumni_employment)
+
+ggplot(edu_empl, aes(x = quality_of_education, y = institution)) +
+  geom_density_ridges(aes(fill = institution), alpha = 0.5) +
+  labs(title = "Quality of education in 2012-2015",
+       x = "education quality")
+
+ggplot(edu_empl, aes(x = alumni_employment, y = institution)) + 
+  geom_density_ridges(aes(fill = institution), alpha = 0.5) +
+  labs(title = "Alumni Employment in 2012-2015",
+       x = "alumni employment")
+
+
+```
+
+<hr class="linea-red">
+
+### *Times Higher Education World University Ranking*
+
+Cambiamos ahora de fuente y observamos los datos relativos a la
+institución [Times Higher Education World University
+Ranking](https://www.timeshighereducation.com/content/world-university-rankings).
+
+En la siguiente tabla analizamos, **cuáles han sido las diez mejores
+universidades** según Times ránking a través de los años 2012-2015. En
+este caso, no es Harvard la primera clasificada, sino el **California
+Institue of Technology** durante todo el período, seguido ahora sí de
+Harvard, Stanford, Oxford y Princeton, que aparece aquí por encima de
+Cambridge y el MIT. De esta manera, concluimos que los diferentes
+ránkings nos proporcionan clasificaciones diferentes.
+
+```{r, echo = FALSE, eval = TRUE}
+
+times10 <- times1 %>% 
+  select(year, world_rank_N, university_name) %>% 
+  filter(world_rank_N <= 10) %>% 
+  rename("university name" = university_name) 
+
+times10_wide <- pivot_wider(times10, names_from = year, values_from = world_rank_N)
+
+kbl(times10_wide) %>%
+  kable_styling(fixed_thead = list(enabled = T, 
+                                   background = "lightpink")) %>% 
+  kable_paper(bootstrap_options = "striped", full_width = F)
+```
+
+Para mostrar el cambio en puestos de ranking a lo largo del tiempo,
+ahora utilizamos un gráfico animado, tal y como hemos hecho antes con
+los datos de CWUR. Nuevamente, lo que más nos llama la atención es la
+bajada consideable de Harvard, que vuelve a ascender después.
+
+```{r, echo = FALSE, eval = TRUE}
+ggplot(times5, aes(year, world_rank_N, color = university_name, shape = university_name)) +
+  geom_point(aes(size = 4))+
+  scale_color_brewer(type="qual", palette = 3) +
+  transition_time(year) +
+  ease_aes('linear') +
+  theme_minimal() +
+  labs(title = "Best 5 Universities by TIMES",
+       y = "rank")
+```
+
+Para analizar variables diferentes a las ya estudiadas con el otro
+dataset, vamos a observar ahora el **número de estudiantes
+matriculados** en las 20 mejores universidades a lo largo del tiempo, y
+lo visualizaremos mediante un gráfico también. En el gganimate podemos
+ver cómo cambia este número al largo de los diferentes años (de 2012 a
+2016).
+
+```{r, echo=TRUE}
+# Vamos a eliminar algunas variables que no me interesan del df original y a crear un dataframe con las 20 mejores universidades por cada año 
+
+times_data_1 <- times_data %>% select(world_rank, university_name, country, total_score, num_students, international_students, year)
+
+df_2011 <- times_data_1 %>% filter(year == 2011) %>% slice_max(total_score, n = 20)
+
+df_2012 <- times_data_1 %>% filter(year == 2012) %>% slice_max(total_score, n = 20)
+
+df_2013 <- times_data_1 %>% filter(year == 2013) %>% slice_max(total_score, n = 20)
+
+df_2014 <- times_data_1 %>% filter(year == 2014) %>% slice_max(total_score, n = 20)
+
+df_2015 <- times_data_1 %>% filter(year == 2015) %>% slice_max(total_score, n = 20)
+
+df_2016 <- times_data_1 %>% filter(year == 2016) %>% slice_max(total_score, n = 20)
+
+df_total <- rbind(df_2011, df_2012, df_2013, df_2014, df_2015, df_2016)
+
+rm(df_2011, df_2012, df_2013, df_2014, df_2015, df_2016, times_data, times_data_1)
+
+```
+
+Creamos ahora el gráfico animado que muestra el número de alumnos
+matriculados
+
+```{r, echo=FALSE}
+
+
+animacion <- ggplot(data = df_total) +
+  geom_col(aes(university_name, num_students, fill = university_name)) +
+  scale_y_discrete(breaks = seq(0, 100, 10), label = scales::dollar) +
+  geom_text(aes(university_name, num_students, label = num_students), hjust=-0.5) +
+  geom_text(aes(university_name, y=0, label = university_name), hjust=1.1) + 
+  geom_text(aes(x=15, y=max(num_students) , label = as.factor(year)), vjust = 5, alpha = 0.5,  col = "gray", size = 10) +
+  coord_flip(clip = "off", expand = FALSE) + 
+  theme_minimal() + theme(
+    panel.grid = element_blank(), 
+    legend.position = "none",
+    axis.ticks.y = element_blank(),
+    axis.title.y = element_blank(),
+    axis.text.y = element_blank(),
+    plot.margin = margin(1, 4, 1, 9, "cm")
+  ) +
+  transition_states(year, state_length = 0, transition_length = 2) +
+  ease_aes ('linear') +
+  labs(title = "Número de estudiantes a lo largo del tiempo",
+       y = "Num Estudiantes")
+
+animate(animacion, width = 700, height = 432, fps = 25, duration = 15, rewind = FALSE)
+
+```
+
+Dado que estas universidades suelen ser bastante internacionales,
+también hemos querido observar cuál es exactamente el **porcentaje de
+alumnos internacionales** en relación con el anterior observado número
+de estudiantes.
+
+```{r echo=FALSE}
+
+df_total <- df_total %>% 
+  mutate(international_students = parse_number(international_students) / 100) %>%
+  mutate(num_students = parse_number(num_students)) %>%
+  mutate(num_international_students = num_students * international_students) %>% 
+  mutate(international_students = percent(international_students)) %>% 
+  mutate(total = 100) %>% filter(year == 2016)
+  
+
+p1 <- ggplot(df_total, aes(university_name, num_students)) + geom_col(fill = "blue") + coord_flip() + 
+  geom_col(aes(university_name, num_international_students, fill = "red")) +
+  geom_text(aes(university_name, total, label = international_students), hjust = -6) +
+  theme_minimal() + theme(legend.position = "None") +
+  labs(title = "Porcentaje Estudiantes Internacionales",
+       subtitle = "Datos del año 2016",
+       x = "Universidades",
+       y = "Num Estudiantes")
+
+p1
+```
+
+<hr class="linea-red">
+
+### *Academic Ranking of World Universities*
+
+También conocido como [Shanghai
+Ranking](http://www.shanghairanking.com/), es uno de los más conocidos y
+prestigiosos del mundo. Vamos a analizar bien sus datos de manera
+visual. Como en este caso no tenemos datos sobre los países, vamos a
+visualizar en una tabla **cuáles han sido las diez mejores
+universidades** a través de los años 2012-2015. Nuevamente aparece
+Harvard a la cabeza, seguida de Standord y el MIT. Sin embargo, ahora se
+clasifica en cuarto lugar la UC Berkeley por delante de Cambridge.
+
+```{r, echo=FALSE, eval = TRUE}
+
+shanghai10 <- Shanghai1 %>% 
+  select(year, world_rank_N, university_name) %>% 
+  filter(world_rank_N <= 10) %>% 
+  rename("university name" = university_name)
+
+shanghai10_wide <- pivot_wider(shanghai10, names_from = year, values_from = world_rank_N)
+
+kbl(shanghai10_wide) %>%
+  kable_styling(fixed_thead = list(enabled = T, 
+                                   background = "lightyellow")) %>% 
+  kable_paper(bootstrap_options = "striped", full_width = F)
+```
+
+Teniendo en cuenta ahora las **cinco mejores universidades** según este
+ránking, podemos hacer un análisis de una manera más visual, a través
+(de nuevo) de los años 2012-2015. Para eso utilizamos un mapa animado,
+tal y como hemos hecho antes con los datos de CWUR y TIMES. En esta
+ocasión, los datos son distintos, y podemos ver cómo los puestos 1, 2 y
+5 se mantienen estables, mientras que el MIT y UC Berkeley van
+intercambiando posiciones.
+
+```{r, echo = FALSE, eval = TRUE}
+
+Shanghai5a <- Shanghai5 %>% 
+  select(world_rank_N, university_name, year)
+
+ggplot(Shanghai5a, aes(year, world_rank_N, color = university_name, shape = university_name)) +
+  geom_point(aes(size = 4))+
+  scale_color_brewer(type="qual", palette = 3) +
+  transition_time(year) +
+  ease_aes('linear') +
+  theme_minimal() +
+  labs(title = "Best 5 Universities by Shanghai Ranking",
+       y = "rank")
+```
+
+A continuación en los gráficos queremos mostrar los resultados de las
+**10 mejores universidades en 2015**, en dos categorías: **Profesores**
+de una institución, **ganadores de premios Nobel y medallas Fields** y
+**Alumnos** de una institución, **ganadores de premios Nobel y medallas
+Fields**.
+
+```{r, echo = FALSE, eval = TRUE}
+Shanghai10 <- Shanghai1 %>% 
+  filter(world_rank_N <= 10) %>% 
+  filter(year == 2015)
+
+ggplot(Shanghai10, aes(x = university_name, y = award)) +
+  geom_segment(aes(x=university_name, xend=university_name, y=0, yend=award)) +
+  geom_point( size=5, color="blue", fill=alpha("lightpink", 0.3), alpha=0.7, shape=21, stroke=2) +
+  theme_minimal() +
+  coord_flip() +
+  labs(title = "Staff winning Nobel Prizes and Fields Medals in 2015",
+       x = "university name",
+      y = "staff")
+
+ggplot(Shanghai10, aes(x = university_name, y = alumni)) +
+  geom_segment(aes(x=university_name, xend=university_name, y=0, yend=alumni)) +
+  geom_point( size=4, color="Green", fill=alpha("yellow", 0.3), alpha=0.7, shape=21, stroke=2) +
+  theme_minimal() +
+  coord_flip() +
+  labs(title = "Alumni winning Nobel Prizes and Fields Medals in 2015",
+       x = "university name")
+  
+```
+
+------------------------------------------------------------------------
+
+# 4. Conclusiones
+
+Después de analizar nuestros datos mediante gráficos y tablas, hemos
+visto como diferentes rankings nos ofrecen información diversa.
+Principalmente extraemos como conclusión que Estados Unidos es el país
+con las mejores universidades de todo el mundo, sin importar el dataset
+en que nos basemos. También hemos podido observar como un buen
+posicionamiento en el ránking mundial tiene relación también con una
+elevada posición respecto al número de publicaciones o citas, así como
+la posición en el ránking a nivel nacional. Además, hemos observado como
+las mejores universidades suelen mantener su estatus,y en raras
+ocasiones vemos cambios significativos en los rankings. Y también
+podemos afirmar que cada ránking, dependiendo en los criterios
+utilizados para clasificar las universidades, nos ofrece un orden
+diferente, por eso es interesante tener en cuenta diferentes
+instituciones cuando queremos hacer un análisis global de la situación.
+
+------------------------------------------------------------------------
+
+# 5. Trabajos en los que nos hemos basado
+
+Para realizar este estudio, nos hemos basado en otros trabajos a parte
+de tener ideas propias. Entre ellos, encontramos trabajos que se
+realizaron en esta asignatura el año pasado, de donde hemos sacado
+información sobre cómo elaborar el Rmarkdown de una manera más elegante.
+
+-   [Análisis sobre la
+    Covid-19](https://nosan5.github.io/trabajo_BigData_equipo/) (Ignacio
+    Montava, Andreu Esparza y Noelia Sánchez)
+
+-   [World University Rankings Advanced
+    Analysis](https://www.kaggle.com/gpreda/world-university-rankings-advanced-analysis/report)
+    (Gabriel Preda)
+    
+-   [Universidades líderes en el mundo](https://www.ivie.es/es_ES/ptproyecto/futuro-del-liderazgo-las-universidades-las-sociedades-avanzadas/)
+  (Belén Miravalles Pérez, Inés Rosell Quintanilla, Irene Zaera Cuadrado, 
+  Dirigido por: Francisco Pérez García, Joaquín Aldás Manzano, José María Peiró Silla)
+
+<hr class="linea-red">
+
+# 6. Bibliografía
+
+Además, hemos utilizado como principales herramientas en la elaboración
+del trabajo:
+
+-   La [página web del
+    curso](https://perezp44.github.io/intro-ds-21-22-web/index.html) de
+    Programación y manejo de datos en la era del Big Data.
+
+-   La base de datos [Kaggle](https://www.kaggle.com/).
+
+-   Galería de gráficos de [ggplot](https://www.r-graph-gallery.com/).
+
+<br><br>
+
+<hr class="linea-red">
+
+<hr class="linea-red">
+
+# 7. Sesión informativa
+
+```{r, echo = FALSE}
+sessioninfo::session_info() %>% details::details(summary = 'Información de mi R-sesión:') 
+```
+
+<br><br>
+
+
