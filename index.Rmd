@@ -299,7 +299,7 @@ slice_max(NN, n = 5)
 
 ggplot(CwurCountries, aes(country, NN)) + geom_bar(stat = "identity",
 fill="#f68060", alpha = .6, width = .4) + coord_flip() +
-facet_wrap(vars(year)) +  theme_minimal() + labs(title = "Mejores 5 países según CWUR", y =
+facet_wrap(vars(year)) +  theme_minimal() + labs(title = "Las mejores 5 países según CWUR", y =
 "rank")
 ```
 
@@ -312,7 +312,6 @@ visualmente más atractivos.
 ```{r, echo = FALSE, eval = TRUE}
 
 CwurCountries10 <- cwur1 %>% 
-  #filter(year == 2012) %>% 
   rename(region = country) %>% 
   group_by(year, region) %>% 
   summarise(NN = n()) %>% 
@@ -333,7 +332,8 @@ ggplot() +
   geom_polygon(data = World, aes (x = long, y = lat, group = group), fill = "#f2f2f2", color = "white") +
   geom_polygon(data = Map1, aes (x = long, y = lat, group = group),  fill = "#69b3a2", color = "white") +
   facet_wrap(vars(year)) +  
-  theme_void() 
+  theme_void() +
+  labs(title = "                         Las mejores 10 países según CWUR en 2012 - 2015")
 ```
 
 ```{r, echo = FALSE, eval = TRUE}
@@ -345,8 +345,7 @@ wordcloud2(data = D_words, size = 1.0)
 
 ```
 
-Este análisis se puede extender a los **100 países con más
-representación de universidades** teniendo en cuenta los datos del CWUR.
+Este análisis se puede extender a **todos los países en el ranking** teniendo en cuenta los datos del CWUR.
 Obviamente, EEUU sigue siendo el país con más universidades en el
 ránking, pero aparecen otros países interesantes, como Noruega o Israel,
 por ejemplo. No observamos ninguna universidad española entre las
@@ -364,7 +363,7 @@ best_count_cwur <-
 
 bc <- ggplot(best_count_cwur, aes(x="", y=NN, fill=country))+
   geom_bar(width = 1, stat = "identity") +
-  labs(title = "Best 100 Countries by CWUR in 2012 -  2015",
+  labs(title = "Best countries by CWUR in 2012 - 2015",
        x = " ",
        y = " ")
 
@@ -386,7 +385,7 @@ best_count_times <-
 
 tc <- ggplot(best_count_times, aes(x="", y=NN, fill=country))+
   geom_bar(width = 1, stat = "identity") +
-  labs(title = "Best 100 Countries by TIMES in 2012 - 2015",
+  labs(title = "Best countries by TIMES in 2012 - 2015",
        x = " ",
        y = " ")
 
@@ -695,7 +694,7 @@ for(i in 3:nrow(spidercwur12)){
 }
 ```
 
-Para observar la relación entre la **calidad de la educació**n y la
+Para observar la relación entre la **calidad de la educación** y la
 **posterior empleabilidad** de los alumnos preparamos dos gráficos,
 donde podemos observar, que las universidades obtienen una clasificación
 más alta en términos de calidad de enseñanza que empleo de los alumnos
